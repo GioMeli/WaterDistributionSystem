@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { DeliveryStatusBadge, ItemStatusBadge } from '@/components/common/StatusBadge';
 import { getDelivery, getDeliveryItems, updateDelivery, uploadFile, addAuditLog } from '@/services/api';
+import { supabase } from '@/db/supabase';
 import type { Delivery, DeliveryLocationItem, Profile } from '@/types/types';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -87,6 +88,22 @@ const DeliveryReviewPage: React.FC = () => {
       entity_id: id,
       details: { reason: rejectReason },
     });
+
+    try {
+      await supabase.functions.invoke('send-email', {
+        body: {
+          to: delivery?.vendor?.email,
+          subject: 'Delivery rejected - action required',
+          body: `
+            Your delivery has been reviewed and rejected by the admin.<br/><br/>
+            <strong>Reason:</strong> ${rejectReason.trim()}<br/><br/>
+            Please login to the Vendor Portal, correct the delivery, and resubmit it.
+          `,
+        },
+      });
+    } catch (emailError) {
+      console.error('Vendor rejection email failed:', emailError);
+    }
     toast.success('Delivery rejected and returned to vendor');
     setRejectOpen(false);
     navigate('/admin/deliveries');
@@ -137,6 +154,23 @@ const DeliveryReviewPage: React.FC = () => {
       entity_id: id,
       details: { admin_name: adminName },
     });
+
+    try {
+      await supabase.functions.invoke('send-email', {
+        body: {
+          to: delivery?.vendor?.email,
+          subject: 'Delivery approved and finalised',
+          body: `
+            Your delivery has been approved and finalised by the admin.<br/><br/>
+            <strong>Delivery ID:</strong> ${id}<br/>
+            <strong>Approved by:</strong> ${adminName.trim()}<br/><br/>
+            No further action is required.
+          `,
+        },
+      });
+    } catch (emailError) {
+      console.error('Vendor approval email failed:', emailError);
+    }
 
     toast.success('Delivery approved and finalised!');
     setApproveOpen(false);
