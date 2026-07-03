@@ -172,13 +172,18 @@ const ReportsPage: React.FC = () => {
     const year  = dt.getFullYear();
     const season = SEASONS.find((s) => s.months.includes(month));
     if (!season) return;
-    yearlySeasonMap[season.name][year] = (yearlySeasonMap[season.name][year] ?? 0) + item.issued_quantity;
+    // Guard: issued_quantity may be null from Supabase despite the TypeScript type
+    const qty = Number(item.issued_quantity) || 0;
+    yearlySeasonMap[season.name][year] = (yearlySeasonMap[season.name][year] ?? 0) + qty;
   });
   // Estimate = average of per-year totals across all historical years
   const seasonEstimate = (seasonName: string): number => {
-    const yearTotals = Object.values(yearlySeasonMap[seasonName]);
+    const map = yearlySeasonMap[seasonName];
+    if (!map) return 0;
+    const yearTotals = Object.values(map).filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
     if (yearTotals.length === 0) return 0;
-    return Math.round(yearTotals.reduce((a, b) => a + b, 0) / yearTotals.length);
+    const avg = yearTotals.reduce((a, b) => a + b, 0) / yearTotals.length;
+    return Number.isFinite(avg) ? Math.round(avg) : 0;
   };
 
   // Actuals computed from the filtered set (respects date/vendor/status filters)
@@ -575,7 +580,7 @@ const ReportsPage: React.FC = () => {
                     <BarChart data={locationChartData} layout="vertical" margin={{ left: 8, right: 24 }}>
                       <XAxis type="number" tick={{ fontSize: 11 }} />
                       <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={140} />
-                      <Tooltip formatter={(value, name) => [value.toLocaleString(), name]} />
+                      <Tooltip formatter={(value, name) => [Number(value).toLocaleString(), name]} />
                       <Legend layout="horizontal" wrapperStyle={{ paddingTop: 8 }} />
                       <Bar dataKey="estimated" fill={CHART_COLORS[4]} name="Estimated" />
                       <Bar dataKey="issued"    fill={CHART_COLORS[0]} name="Issued" />
@@ -648,7 +653,7 @@ const ReportsPage: React.FC = () => {
                         <span className="text-sm font-semibold text-foreground">{s.name}</span>
                         <Icon className="h-4 w-4" style={{ color: s.color }} />
                       </div>
-                      <p className="text-2xl font-bold text-foreground">{s.estimate.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-foreground">{(s.estimate ?? 0).toLocaleString()}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">Avg issued (forecast)</p>
                       <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
                         <p>Issued: <span className="font-medium text-foreground">{s.issued.toLocaleString()}</span></p>
@@ -717,7 +722,7 @@ const ReportsPage: React.FC = () => {
                             </td>
                             <td className="px-4 py-3 text-muted-foreground">{season.months.map((m) => monthLabels[m]).join(', ')}</td>
                             <td className="px-4 py-3 text-right text-foreground">{s.deliveries}</td>
-                            <td className="px-4 py-3 text-right text-foreground">{s.estimate.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-right text-foreground">{(s.estimate ?? 0).toLocaleString()}</td>
                             <td className="px-4 py-3 text-right font-medium text-foreground">{s.issued.toLocaleString()}</td>
                             <td className="px-4 py-3 text-right font-medium text-foreground">{s.received.toLocaleString()}</td>
                             <td className="px-4 py-3 text-right text-foreground">{(s.issued - s.received).toLocaleString()}</td>
