@@ -147,17 +147,64 @@ export const getPendingDeliveries = async () => {
 };
 
 export const updateDelivery = async (id: string, updates: Partial<Delivery>) => {
-  const { data, error } = await supabase.from('deliveries').update(updates).eq('id', id).select().maybeSingle();
+  const { data: current, error: fetchError } = await supabase
+    .from('deliveries')
+    .select('status')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (fetchError) return { data: null, error: fetchError };
+
+  if (
+    current?.status === 'approved' ||
+    current?.status === 'finalised'
+  ) {
+    const error = new Error('Approved or finalised deliveries cannot be modified.');
+    return { data: null, error };
+  }
+
+  const { data, error } = await supabase
+    .from('deliveries')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .maybeSingle();
+
   return { data: data as Delivery | null, error };
 };
 
 export const updateDeliveryItem = async (id: string, updates: Partial<DeliveryLocationItem>) => {
+  const { data: item, error: fetchError } = await supabase
+    .from('delivery_location_items')
+    .select(`
+      id,
+      delivery:deliveries!delivery_location_items_delivery_id_fkey(status)
+    `)
+    .eq('id', id)
+    .maybeSingle();
+
+  if (fetchError) return { data: null, error: fetchError };
+
+  const itemData = item as {
+    delivery?: { status?: string } | { status?: string }[] | null;
+  };
+
+  const deliveryStatus = Array.isArray(itemData.delivery)
+    ? itemData.delivery[0]?.status
+    : itemData.delivery?.status;
+
+  if (deliveryStatus === 'approved' || deliveryStatus === 'finalised') {
+    const error = new Error('Items from approved or finalised deliveries cannot be modified.');
+    return { data: null, error };
+  }
+
   const { data, error } = await supabase
     .from('delivery_location_items')
     .update(updates)
     .eq('id', id)
     .select()
     .maybeSingle();
+
   return { data: data as DeliveryLocationItem | null, error };
 };
 
