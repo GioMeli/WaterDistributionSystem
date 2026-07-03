@@ -1,0 +1,133 @@
+/* stylelint-disable */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'HarmonyOSSans';
+  src: url('https://resource-static.bj.bcebos.com/fonts-skill/HarmonyOSSans_Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HarmonyOSSans';
+  src: url('https://resource-static.bj.bcebos.com/fonts-skill/HarmonyOSSans_Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HarmonyOSSans';
+  src: url('https://resource-static.bj.bcebos.com/fonts-skill/HarmonyOSSans_Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+    /* Primary: #2563EB (blue) */
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+    /* Accent: #EA580C (orange) */
+    --accent: 24 95% 48%;
+    --accent-foreground: 0 0% 100%;
+    /* Background: #F8FAFC */
+    --background: 210 40% 98%;
+    --foreground: 215 25% 27%;
+    /* Card: white */
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 27%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 27%;
+    /* Secondary: #3B82F6 */
+    --secondary: 217 91% 60%;
+    --secondary-foreground: 0 0% 100%;
+    /* Muted: #E9EFF8 */
+    --muted: 216 56% 92%;
+    --muted-foreground: 215 16% 47%;
+    /* Border: #CBD5E1 */
+    --border: 214 32% 82%;
+    --input: 214 32% 82%;
+    --ring: 221 83% 53%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    /* Charts */
+    --chart-1: 221 83% 53%;
+    --chart-2: 142 71% 45%;
+    --chart-3: 24 95% 48%;
+    --chart-4: 265 83% 58%;
+    --chart-5: 38 92% 50%;
+    /* Sidebar */
+    --sidebar-background: 222 47% 16%;
+    --sidebar-foreground: 210 40% 92%;
+    --sidebar-primary: 221 83% 63%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 47% 22%;
+    --sidebar-accent-foreground: 210 40% 92%;
+    --sidebar-border: 222 47% 22%;
+    --sidebar-ring: 221 83% 53%;
+    /* Status colors */
+    --status-finalised: 142 71% 45%;
+    --status-approved: 142 71% 45%;
+    --status-submitted: 221 83% 53%;
+    --status-in-progress: 38 92% 50%;
+    --status-rejected: 0 84% 60%;
+    --status-draft: 215 16% 60%;
+    /* Shadows */
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+    --shadow-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 92%;
+    --card: 222 47% 14%;
+    --card-foreground: 210 40% 92%;
+    --popover: 222 47% 14%;
+    --popover-foreground: 210 40% 92%;
+    --primary: 221 83% 63%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 40% 25%;
+    --secondary-foreground: 210 40% 92%;
+    --muted: 217 40% 20%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 24 95% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 63% 40%;
+    --border: 217 40% 22%;
+    --input: 217 40% 22%;
+    --ring: 221 83% 63%;
+    --sidebar-background: 222 47% 9%;
+    --sidebar-foreground: 210 40% 88%;
+    --sidebar-primary: 221 83% 63%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 47% 14%;
+    --sidebar-accent-foreground: 210 40% 88%;
+    --sidebar-border: 222 47% 16%;
+    --sidebar-ring: 221 83% 53%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'HarmonyOSSans', system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'HarmonyOSSans', system-ui, -apple-system, sans-serif;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+}
