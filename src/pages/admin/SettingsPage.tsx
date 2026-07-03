@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getSettings, updateSetting } from '@/services/api';
 import { toast } from 'sonner';
-import { Settings, Save, Mail, Info } from 'lucide-react';
+import { Settings, Save, Mail, Info, FileText, Building2 } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -24,7 +24,15 @@ const SettingsPage: React.FC = () => {
 
   const handleSave = async () => {
     setSaving(true);
-    const keys = ['notification_email', 'system_name', 'admin_email'];
+    const keys = [
+      'notification_email',
+      'admin_email',
+      'system_name',
+      'company_name',
+      'pdf_header_text',
+      'approval_email_text',
+      'rejection_email_text',
+    ];
     for (const key of keys) {
       if (settings[key] !== undefined) {
         await updateSetting(key, settings[key]);
@@ -97,6 +105,66 @@ const SettingsPage: React.FC = () => {
                       placeholder="Water Distribution Management System"
                       value={settings['system_name'] || ''}
                       onChange={(e) => setSettings((p) => ({ ...p, system_name: e.target.value }))}
+                      className="h-10"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Building2 className="h-4 w-4 text-primary" />
+                    Company Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Company Name</Label>
+                    <Input
+                      placeholder="Water Distribution Company"
+                      value={settings['company_name'] || ''}
+                      onChange={(e) => setSettings((p) => ({ ...p, company_name: e.target.value }))}
+                      className="h-10"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <FileText className="h-4 w-4 text-primary" />
+                    PDF & Email Text
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>PDF Header Text</Label>
+                    <Input
+                      placeholder="Official Delivery Confirmation"
+                      value={settings['pdf_header_text'] || ''}
+                      onChange={(e) => setSettings((p) => ({ ...p, pdf_header_text: e.target.value }))}
+                      className="h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Approval Email Text</Label>
+                    <Input
+                      placeholder="Your delivery has been approved."
+                      value={settings['approval_email_text'] || ''}
+                      onChange={(e) => setSettings((p) => ({ ...p, approval_email_text: e.target.value }))}
+                      className="h-10"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Rejection Email Text</Label>
+                    <Input
+                      placeholder="Your delivery has been rejected. Please review the reason and resubmit."
+                      value={settings['rejection_email_text'] || ''}
+                      onChange={(e) => setSettings((p) => ({ ...p, rejection_email_text: e.target.value }))}
                       className="h-10"
                     />
                   </div>
