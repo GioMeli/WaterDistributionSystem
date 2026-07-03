@@ -9,7 +9,6 @@ import { Droplets, Eye, EyeOff, ShieldCheck, Truck, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
 const DEMO_CREDENTIALS = [
-  { label: 'Admin', email: 'georgios.meli@un.org', password: '123Gm456!', role: 'admin' as const },
   { label: 'Vendor', email: 'vendor@wdms.local', password: 'Vendor@1234', role: 'vendor' as const },
 ];
 

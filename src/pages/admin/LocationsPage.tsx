@@ -56,8 +56,8 @@ const LocationsPage: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!editing.route_number?.trim() || !editing.office_name?.trim() || !editing.building_number?.trim() || !editing.sup_number?.trim()) {
-      toast.error('Route Number, Building, Office Name, and SUP Number are required');
+    if (!editing.route_number?.trim() || !editing.office_name?.trim() || !editing.building_number?.trim()) {
+      toast.error('Route Number, Building Number, and Office Name are required');
       return;
     }
     setSaving(true);
@@ -231,7 +231,7 @@ const LocationsPage: React.FC = () => {
               { key: 'route_number', label: 'Route Number', required: true },
               { key: 'building_number', label: 'Building Number', required: true },
               { key: 'office_name', label: 'Office Name', required: true, full: true },
-              { key: 'sup_number', label: 'SUP Number', required: true },
+              { key: 'sup_number', label: 'SUP Number', required: false },
               { key: 'estimated_bottles', label: 'Estimated Bottles', type: 'number' },
               { key: 'latitude', label: 'Latitude', type: 'number' },
               { key: 'longitude', label: 'Longitude', type: 'number' },

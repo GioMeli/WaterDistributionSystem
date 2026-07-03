@@ -9,13 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { getAllVendors } from '@/services/api';
 import { supabase } from '@/db/supabase';
 import type { Profile } from '@/types/types';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, getMonth } from 'date-fns';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
   LineChart, Line, PieChart, Pie, Cell,
 } from 'recharts';
 import * as XLSX from 'xlsx';
-import { Download, Filter, BarChart2, TrendingUp, Package } from 'lucide-react';
+import { Download, Filter, BarChart2, TrendingUp, Package, MapPin, Sun, Leaf, Snowflake, Flower2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const CHART_COLORS = ['#2563EB', '#EA580C', '#16A34A', '#9333EA', '#DC2626', '#0891B2'];
@@ -49,7 +49,7 @@ const ReportsPage: React.FC = () => {
   const [items, setItems] = useState<ReportItem[]>([]);
   const [vendors, setVendors] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'charts' | 'tables'>('charts');
+  const [activeTab, setActiveTab] = useState<'charts' | 'tables' | 'locations' | 'seasonal'>('charts');
 
   // Filters
   const [startDate, setStartDate] = useState('');
@@ -117,15 +117,24 @@ const ReportsPage: React.FC = () => {
   });
   const monthlyData = Object.entries(monthlyMap).map(([month, v]) => ({ month, ...v }));
 
-  // By location
-  const locationMap: Record<string, number> = {};
+  // By location (with all metrics + delivery count)
+  const locationMap: Record<string, { estimated: number; issued: number; received: number; deliveries: Set<string> }> = {};
   filtered.forEach((i) => {
-    locationMap[i.office_name] = (locationMap[i.office_name] || 0) + i.issued_quantity;
+    if (!locationMap[i.office_name]) {
+      locationMap[i.office_name] = { estimated: 0, issued: 0, received: 0, deliveries: new Set() };
+    }
+    locationMap[i.office_name].estimated += i.estimated_bottles;
+    locationMap[i.office_name].issued    += i.issued_quantity;
+    locationMap[i.office_name].received  += i.received_quantity;
+    if (i.delivery_id) locationMap[i.office_name].deliveries.add(i.delivery_id);
   });
   const locationData = Object.entries(locationMap)
-    .map(([name, issued]) => ({ name, issued }))
+    .map(([name, v]) => ({ name, estimated: v.estimated, issued: v.issued, received: v.received, deliveries: v.deliveries.size }))
     .sort((a, b) => b.issued - a.issued)
     .slice(0, 10);
+
+  // Location chart data (top 10 for chart)
+  const locationChartData = locationData.slice(0, 10);
 
   // By vendor
   const vendorMap: Record<string, number> = {};
@@ -134,6 +143,38 @@ const ReportsPage: React.FC = () => {
     vendorMap[vname] = (vendorMap[vname] || 0) + i.issued_quantity;
   });
   const vendorData = Object.entries(vendorMap).map(([name, issued]) => ({ name, issued }));
+
+  // ── Seasonal estimates ────────────────────────────────────────────────────
+  const SEASONS: { name: string; months: number[]; icon: React.ElementType; color: string }[] = [
+    { name: 'Spring',  months: [3, 4, 5],     icon: Flower2,   color: '#16A34A' },
+    { name: 'Summer',  months: [6, 7, 8],     icon: Sun,       color: '#F59E0B' },
+    { name: 'Autumn',  months: [9, 10, 11],   icon: Leaf,      color: '#EA580C' },
+    { name: 'Winter',  months: [12, 1, 2],    icon: Snowflake, color: '#2563EB' },
+  ];
+  const seasonalMap: Record<string, { estimated: number; issued: number; received: number; deliveries: Set<string> }> = {
+    Spring: { estimated: 0, issued: 0, received: 0, deliveries: new Set() },
+    Summer: { estimated: 0, issued: 0, received: 0, deliveries: new Set() },
+    Autumn: { estimated: 0, issued: 0, received: 0, deliveries: new Set() },
+    Winter: { estimated: 0, issued: 0, received: 0, deliveries: new Set() },
+  };
+  filtered.forEach((item) => {
+    if (!item.delivery?.delivery_date) return;
+    const month = getMonth(parseISO(item.delivery.delivery_date)) + 1; // 1-12
+    const season = SEASONS.find((s) => s.months.includes(month));
+    if (!season) return;
+    seasonalMap[season.name].estimated += item.estimated_bottles;
+    seasonalMap[season.name].issued    += item.issued_quantity;
+    seasonalMap[season.name].received  += item.received_quantity;
+    if (item.delivery_id) seasonalMap[season.name].deliveries.add(item.delivery_id);
+  });
+  const seasonalData = SEASONS.map((s) => ({
+    name: s.name,
+    color: s.color,
+    estimated: seasonalMap[s.name].estimated,
+    issued:    seasonalMap[s.name].issued,
+    received:  seasonalMap[s.name].received,
+    deliveries: seasonalMap[s.name].deliveries.size,
+  }));
 
   // Export CSV
   const exportCSV = () => {
@@ -189,9 +230,13 @@ const ReportsPage: React.FC = () => {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailedRows), 'Detailed Data');
 
     // Sheet 2: Summary by Location
-    const locSummary = Object.entries(locationMap).map(([office, issued]) => ({
-      'Office Name': office,
-      'Total Issued': issued,
+    const locSummary = locationData.map((row) => ({
+      'Office Name': row.name,
+      'Deliveries': row.deliveries,
+      'Estimated': row.estimated,
+      'Total Issued': row.issued,
+      'Total Received': row.received,
+      'Difference': row.issued - row.received,
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(locSummary), 'By Location');
 
@@ -335,16 +380,20 @@ const ReportsPage: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2">
-          {(['charts', 'tables'] as const).map((tab) => (
+        <div className="flex flex-wrap gap-2">
+          {([
+            { key: 'charts',    label: 'Charts'           },
+            { key: 'tables',    label: 'Detail Table'     },
+            { key: 'locations', label: 'By Location'      },
+            { key: 'seasonal',  label: 'Seasonal Estimates'},
+          ] as const).map((tab) => (
             <Button
-              key={tab}
-              variant={activeTab === tab ? 'default' : 'outline'}
+              key={tab.key}
+              variant={activeTab === tab.key ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setActiveTab(tab)}
-              className="capitalize"
+              onClick={() => setActiveTab(tab.key)}
             >
-              {tab}
+              {tab.label}
             </Button>
           ))}
         </div>
@@ -355,9 +404,9 @@ const ReportsPage: React.FC = () => {
           </div>
         )}
 
+        {/* ── CHARTS ── */}
         {!loading && activeTab === 'charts' && (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            {/* Monthly Consumption */}
             <Card className="shadow-card">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Monthly Consumption</CardTitle>
@@ -378,15 +427,14 @@ const ReportsPage: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* By Location */}
             <Card className="shadow-card">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Top 10 Locations by Consumption</CardTitle>
+                <CardTitle className="text-base">Top 10 Locations by Issued</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="w-full min-w-0 overflow-hidden">
                   <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={locationData} layout="vertical">
+                    <BarChart data={locationChartData} layout="vertical">
                       <XAxis type="number" tick={{ fontSize: 11 }} />
                       <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={120} />
                       <Tooltip />
@@ -397,7 +445,6 @@ const ReportsPage: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* By Vendor */}
             <Card className="shadow-card">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Consumption by Vendor</CardTitle>
@@ -419,7 +466,6 @@ const ReportsPage: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Issued vs Received trend */}
             <Card className="shadow-card">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Issued vs Received Trend</CardTitle>
@@ -442,9 +488,9 @@ const ReportsPage: React.FC = () => {
           </div>
         )}
 
+        {/* ── DETAIL TABLE ── */}
         {!loading && activeTab === 'tables' && (
           <div className="space-y-5">
-            {/* Detailed records */}
             <Card className="shadow-card">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Detailed Delivery Records ({filtered.length})</CardTitle>
@@ -485,11 +531,41 @@ const ReportsPage: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        )}
 
-            {/* Location Summary */}
+        {/* ── BY LOCATION ── */}
+        {!loading && activeTab === 'locations' && (
+          <div className="space-y-5">
+            {/* chart */}
+            <Card className="shadow-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  Deliveries by Location — Selected Period
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="w-full min-w-0 overflow-hidden">
+                  <ResponsiveContainer width="100%" height={320}>
+                    <BarChart data={locationChartData} layout="vertical" margin={{ left: 8, right: 24 }}>
+                      <XAxis type="number" tick={{ fontSize: 11 }} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={140} />
+                      <Tooltip formatter={(value, name) => [value.toLocaleString(), name]} />
+                      <Legend layout="horizontal" wrapperStyle={{ paddingTop: 8 }} />
+                      <Bar dataKey="estimated" fill={CHART_COLORS[4]} name="Estimated" />
+                      <Bar dataKey="issued"    fill={CHART_COLORS[0]} name="Issued" />
+                      <Bar dataKey="received"  fill={CHART_COLORS[2]} name="Received" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* table */}
             <Card className="shadow-card">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Consumption by Location</CardTitle>
+                <CardTitle className="text-base">All Locations Summary ({Object.keys(locationMap).length} locations)</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
@@ -497,17 +573,144 @@ const ReportsPage: React.FC = () => {
                     <thead>
                       <tr className="border-b border-border bg-muted/40">
                         <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Office Name</th>
-                        <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Total Issued</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Deliveries</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Estimated</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Issued</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Received</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Difference</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {Object.entries(locationMap).sort((a, b) => b[1] - a[1]).map(([office, issued]) => (
-                        <tr key={office} className="hover:bg-muted/10">
-                          <td className="px-4 py-2.5 text-foreground">{office}</td>
-                          <td className="px-4 py-2.5 font-medium text-foreground">{issued}</td>
+                      {locationData.map((row) => (
+                        <tr key={row.name} className="hover:bg-muted/10">
+                          <td className="max-w-xs px-4 py-2.5 text-foreground">{row.name}</td>
+                          <td className="px-4 py-2.5 text-right text-foreground">{row.deliveries}</td>
+                          <td className="px-4 py-2.5 text-right text-foreground">{row.estimated.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 text-right font-medium text-foreground">{row.issued.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 text-right font-medium text-foreground">{row.received.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 text-right text-foreground">{(row.issued - row.received).toLocaleString()}</td>
                         </tr>
                       ))}
                     </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-border bg-muted/40 font-semibold">
+                        <td className="px-4 py-2.5 text-foreground">TOTAL</td>
+                        <td className="px-4 py-2.5 text-right text-foreground">—</td>
+                        <td className="px-4 py-2.5 text-right text-foreground">{locationData.reduce((s, r) => s + r.estimated, 0).toLocaleString()}</td>
+                        <td className="px-4 py-2.5 text-right text-foreground">{locationData.reduce((s, r) => s + r.issued, 0).toLocaleString()}</td>
+                        <td className="px-4 py-2.5 text-right text-foreground">{locationData.reduce((s, r) => s + r.received, 0).toLocaleString()}</td>
+                        <td className="px-4 py-2.5 text-right text-foreground">{locationData.reduce((s, r) => s + r.issued - r.received, 0).toLocaleString()}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* ── SEASONAL ESTIMATES ── */}
+        {!loading && activeTab === 'seasonal' && (
+          <div className="space-y-5">
+            {/* Season summary cards */}
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {seasonalData.map((s) => {
+                const season = SEASONS.find((x) => x.name === s.name)!;
+                const Icon = season.icon;
+                return (
+                  <Card key={s.name} className="shadow-card">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-foreground">{s.name}</span>
+                        <Icon className="h-4 w-4" style={{ color: s.color }} />
+                      </div>
+                      <p className="text-2xl font-bold text-foreground">{s.estimated.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Est. bottles</p>
+                      <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                        <p>Issued: <span className="font-medium text-foreground">{s.issued.toLocaleString()}</span></p>
+                        <p>Received: <span className="font-medium text-foreground">{s.received.toLocaleString()}</span></p>
+                        <p>Deliveries: <span className="font-medium text-foreground">{s.deliveries}</span></p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* Seasonal chart */}
+            <Card className="shadow-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Estimated vs Issued vs Received by Season</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="w-full min-w-0 overflow-hidden">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={seasonalData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip formatter={(value, name) => [Number(value).toLocaleString(), name]} />
+                      <Legend layout="horizontal" wrapperStyle={{ paddingTop: 8 }} />
+                      <Bar dataKey="estimated" fill={CHART_COLORS[4]} name="Estimated" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="issued"    fill={CHART_COLORS[0]} name="Issued"    radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="received"  fill={CHART_COLORS[2]} name="Received"  radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Seasonal table */}
+            <Card className="shadow-card">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Seasonal Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full whitespace-nowrap text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/40">
+                        <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Season</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Months</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Deliveries</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Estimated</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Issued</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Received</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Difference</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {seasonalData.map((s) => {
+                        const season = SEASONS.find((x) => x.name === s.name)!;
+                        const Icon = season.icon;
+                        const monthLabels: Record<number, string> = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'};
+                        return (
+                          <tr key={s.name} className="hover:bg-muted/10">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4 shrink-0" style={{ color: s.color }} />
+                                <span className="font-medium text-foreground">{s.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground">{season.months.map((m) => monthLabels[m]).join(', ')}</td>
+                            <td className="px-4 py-3 text-right text-foreground">{s.deliveries}</td>
+                            <td className="px-4 py-3 text-right text-foreground">{s.estimated.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-right font-medium text-foreground">{s.issued.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-right font-medium text-foreground">{s.received.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-right text-foreground">{(s.issued - s.received).toLocaleString()}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-border bg-muted/40 font-semibold">
+                        <td className="px-4 py-2.5 text-foreground" colSpan={2}>ANNUAL TOTAL</td>
+                        <td className="px-4 py-2.5 text-right text-foreground">—</td>
+                        <td className="px-4 py-2.5 text-right text-foreground">{seasonalData.reduce((s, r) => s + r.estimated, 0).toLocaleString()}</td>
+                        <td className="px-4 py-2.5 text-right text-foreground">{seasonalData.reduce((s, r) => s + r.issued, 0).toLocaleString()}</td>
+                        <td className="px-4 py-2.5 text-right text-foreground">{seasonalData.reduce((s, r) => s + r.received, 0).toLocaleString()}</td>
+                        <td className="px-4 py-2.5 text-right text-foreground">{seasonalData.reduce((s, r) => s + r.issued - r.received, 0).toLocaleString()}</td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               </CardContent>
