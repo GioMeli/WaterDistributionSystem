@@ -176,14 +176,22 @@ const ReportsPage: React.FC = () => {
     const qty = Number(item.issued_quantity) || 0;
     yearlySeasonMap[season.name][year] = (yearlySeasonMap[season.name][year] ?? 0) + qty;
   });
-  // Estimate = average of per-year totals across all historical years
+  // Estimate = same season total from the most recent previous year with data
   const seasonEstimate = (seasonName: string): number => {
     const map = yearlySeasonMap[seasonName];
     if (!map) return 0;
-    const yearTotals = Object.values(map).filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
-    if (yearTotals.length === 0) return 0;
-    const avg = yearTotals.reduce((a, b) => a + b, 0) / yearTotals.length;
-    return Number.isFinite(avg) ? Math.round(avg) : 0;
+
+    const years = Object.keys(map)
+      .map(Number)
+      .filter((year) => Number.isFinite(year))
+      .sort((a, b) => b - a);
+
+    if (years.length === 0) return 0;
+
+    const latestYear = years[0];
+    const estimate = map[latestYear] ?? 0;
+
+    return Number.isFinite(estimate) ? Math.round(estimate) : 0;
   };
 
   // Actuals computed from the filtered set (respects date/vendor/status filters)
@@ -654,7 +662,7 @@ const ReportsPage: React.FC = () => {
                         <Icon className="h-4 w-4" style={{ color: s.color }} />
                       </div>
                       <p className="text-2xl font-bold text-foreground">{(s.estimate ?? 0).toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Avg issued (forecast)</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Previous same season forecast</p>
                       <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
                         <p>Issued: <span className="font-medium text-foreground">{s.issued.toLocaleString()}</span></p>
                         <p>Received: <span className="font-medium text-foreground">{s.received.toLocaleString()}</span></p>
@@ -679,7 +687,7 @@ const ReportsPage: React.FC = () => {
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(value, name) => [Number(value).toLocaleString(), name]} />
                       <Legend layout="horizontal" wrapperStyle={{ paddingTop: 8 }} />
-                      <Bar dataKey="estimate" fill={CHART_COLORS[4]} name="Estimate (avg)" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="estimate" fill={CHART_COLORS[4]} name="Previous Season Estimate" radius={[3, 3, 0, 0]} />
                       <Bar dataKey="issued"    fill={CHART_COLORS[0]} name="Issued"    radius={[3, 3, 0, 0]} />
                       <Bar dataKey="received"  fill={CHART_COLORS[2]} name="Received"  radius={[3, 3, 0, 0]} />
                     </BarChart>
@@ -701,7 +709,7 @@ const ReportsPage: React.FC = () => {
                         <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Season</th>
                         <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Months</th>
                         <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Deliveries</th>
-                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Estimate (avg)</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Previous Season Estimate</th>
                         <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Issued</th>
                         <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Received</th>
                         <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Difference</th>
