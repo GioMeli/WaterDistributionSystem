@@ -270,6 +270,19 @@ export const addAuditLog = async (log: {
   await supabase.from('audit_logs').insert(log);
 };
 
+export const getAuditLogs = async (limit = 100) => {
+  const { data, error } = await supabase
+    .from('audit_logs')
+    .select(`
+      *,
+      user:profiles!audit_logs_user_id_fkey(full_name, email, role)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  return { data: data ?? [], error };
+};
+
 // ============================================================
 // STORAGE — upload signature/pdf blob
 // ============================================================

@@ -23,6 +23,7 @@ import VendorsPage from '@/pages/admin/VendorsPage';
 import ReportsPage from '@/pages/admin/ReportsPage';
 import OrderHistoryPage from '@/pages/admin/OrderHistoryPage';
 import SettingsPage from '@/pages/admin/SettingsPage';
+import AuditLogsPage from '@/pages/admin/AuditLogsPage';
 
 const App: React.FC = () => {
   return (
@@ -48,6 +49,7 @@ const App: React.FC = () => {
           <Route path="/admin/vendors" element={<ProtectedRoute requiredRole="admin"><VendorsPage /></ProtectedRoute>} />
           <Route path="/admin/reports" element={<ProtectedRoute requiredRole="admin"><ReportsPage /></ProtectedRoute>} />
           <Route path="/admin/order-history" element={<ProtectedRoute requiredRole="admin"><OrderHistoryPage /></ProtectedRoute>} />
+          <Route path="/admin/audit-logs" element={<ProtectedRoute requiredRole="admin"><AuditLogsPage /></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute requiredRole="admin"><SettingsPage /></ProtectedRoute>} />
 
           {/* Default redirects */}
