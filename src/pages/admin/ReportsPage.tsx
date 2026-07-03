@@ -301,6 +301,38 @@ const ReportsPage: React.FC = () => {
     toast.success('Excel exported');
   };
 
+  const exportYearlySummary = () => {
+    const yearMap: Record<string, { issued: number; received: number; deliveries: Set<string> }> = {};
+
+    filtered.forEach((i) => {
+      const date = i.delivery?.delivery_date;
+      if (!date) return;
+
+      const year = date.slice(0, 4);
+
+      if (!yearMap[year]) {
+        yearMap[year] = { issued: 0, received: 0, deliveries: new Set() };
+      }
+
+      yearMap[year].issued += i.issued_quantity || 0;
+      yearMap[year].received += i.received_quantity || 0;
+      yearMap[year].deliveries.add(i.delivery_id);
+    });
+
+    const rows = Object.entries(yearMap).map(([year, values]) => ({
+      Year: year,
+      Deliveries: values.deliveries.size,
+      'Total Issued': values.issued,
+      'Total Received': values.received,
+      Difference: values.issued - values.received,
+    }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Yearly Summary');
+    XLSX.writeFile(wb, `yearly_summary_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    toast.success('Yearly summary exported');
+  };
+
   return (
     <AdminLayout>
       <div className="p-4 md:p-6 space-y-5">
@@ -315,6 +347,10 @@ const ReportsPage: React.FC = () => {
               <Download className="h-3.5 w-3.5" />
               Excel
             </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={exportYearlySummary}>
+            <Download className="h-3.5 w-3.5" />
+            Yearly Summary
+          </Button>
           </div>
         </div>
 
