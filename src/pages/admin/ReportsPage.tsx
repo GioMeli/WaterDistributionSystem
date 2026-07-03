@@ -151,29 +151,52 @@ const ReportsPage: React.FC = () => {
     { name: 'Autumn',  months: [9, 10, 11],   icon: Leaf,      color: '#EA580C' },
     { name: 'Winter',  months: [12, 1, 2],    icon: Snowflake, color: '#2563EB' },
   ];
-  const seasonalMap: Record<string, { issueCount: number; issued: number; received: number; deliveries: Set<string> }> = {
-    Spring: { issueCount: 0, issued: 0, received: 0, deliveries: new Set() },
-    Summer: { issueCount: 0, issued: 0, received: 0, deliveries: new Set() },
-    Autumn: { issueCount: 0, issued: 0, received: 0, deliveries: new Set() },
-    Winter: { issueCount: 0, issued: 0, received: 0, deliveries: new Set() },
+
+  // Build per-year totals for each season to compute the historical average
+  // yearlySeasonMap[seasonName][year] = total issued that year+season
+  const yearlySeasonMap: Record<string, Record<number, number>> = {
+    Spring: {}, Summer: {}, Autumn: {}, Winter: {},
   };
-  filtered.forEach((item) => {
+  const seasonalMap: Record<string, { issued: number; received: number; deliveries: Set<string> }> = {
+    Spring: { issued: 0, received: 0, deliveries: new Set() },
+    Summer: { issued: 0, received: 0, deliveries: new Set() },
+    Autumn: { issued: 0, received: 0, deliveries: new Set() },
+    Winter: { issued: 0, received: 0, deliveries: new Set() },
+  };
+  // Use ALL loaded items (not just filtered) for the estimate computation so
+  // the average reflects complete historical data regardless of filters.
+  items.forEach((item) => {
     if (!item.delivery?.delivery_date) return;
-    const month = getMonth(parseISO(item.delivery.delivery_date)) + 1; // 1-12
+    const dt    = parseISO(item.delivery.delivery_date);
+    const month = getMonth(dt) + 1; // 1-12
+    const year  = dt.getFullYear();
     const season = SEASONS.find((s) => s.months.includes(month));
     if (!season) return;
-    // issueCount = number of individual delivery issues (line items) in this season
-    seasonalMap[season.name].issueCount += 1;
-    seasonalMap[season.name].issued     += item.issued_quantity;
-    seasonalMap[season.name].received   += item.received_quantity;
+    yearlySeasonMap[season.name][year] = (yearlySeasonMap[season.name][year] ?? 0) + item.issued_quantity;
+  });
+  // Estimate = average of per-year totals across all historical years
+  const seasonEstimate = (seasonName: string): number => {
+    const yearTotals = Object.values(yearlySeasonMap[seasonName]);
+    if (yearTotals.length === 0) return 0;
+    return Math.round(yearTotals.reduce((a, b) => a + b, 0) / yearTotals.length);
+  };
+
+  // Actuals computed from the filtered set (respects date/vendor/status filters)
+  filtered.forEach((item) => {
+    if (!item.delivery?.delivery_date) return;
+    const month  = getMonth(parseISO(item.delivery.delivery_date)) + 1;
+    const season = SEASONS.find((s) => s.months.includes(month));
+    if (!season) return;
+    seasonalMap[season.name].issued   += item.issued_quantity;
+    seasonalMap[season.name].received += item.received_quantity;
     if (item.delivery_id) seasonalMap[season.name].deliveries.add(item.delivery_id);
   });
   const seasonalData = SEASONS.map((s) => ({
-    name: s.name,
-    color: s.color,
-    issueCount: seasonalMap[s.name].issueCount,
-    issued:     seasonalMap[s.name].issued,
-    received:   seasonalMap[s.name].received,
+    name:      s.name,
+    color:     s.color,
+    estimate:  seasonEstimate(s.name),   // avg issued per season across all years
+    issued:    seasonalMap[s.name].issued,
+    received:  seasonalMap[s.name].received,
     deliveries: seasonalMap[s.name].deliveries.size,
   }));
 
@@ -625,8 +648,8 @@ const ReportsPage: React.FC = () => {
                         <span className="text-sm font-semibold text-foreground">{s.name}</span>
                         <Icon className="h-4 w-4" style={{ color: s.color }} />
                       </div>
-                      <p className="text-2xl font-bold text-foreground">{s.issueCount.toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Estimated issues</p>
+                      <p className="text-2xl font-bold text-foreground">{s.estimate.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Avg issued (forecast)</p>
                       <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
                         <p>Issued: <span className="font-medium text-foreground">{s.issued.toLocaleString()}</span></p>
                         <p>Received: <span className="font-medium text-foreground">{s.received.toLocaleString()}</span></p>
@@ -651,7 +674,7 @@ const ReportsPage: React.FC = () => {
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(value, name) => [Number(value).toLocaleString(), name]} />
                       <Legend layout="horizontal" wrapperStyle={{ paddingTop: 8 }} />
-                      <Bar dataKey="issueCount" fill={CHART_COLORS[4]} name="Est. Issues" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="estimate" fill={CHART_COLORS[4]} name="Estimate (avg)" radius={[3, 3, 0, 0]} />
                       <Bar dataKey="issued"    fill={CHART_COLORS[0]} name="Issued"    radius={[3, 3, 0, 0]} />
                       <Bar dataKey="received"  fill={CHART_COLORS[2]} name="Received"  radius={[3, 3, 0, 0]} />
                     </BarChart>
@@ -673,7 +696,7 @@ const ReportsPage: React.FC = () => {
                         <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Season</th>
                         <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Months</th>
                         <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Deliveries</th>
-                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Estimated</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Estimate (avg)</th>
                         <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Issued</th>
                         <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Received</th>
                         <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground">Difference</th>
@@ -694,7 +717,7 @@ const ReportsPage: React.FC = () => {
                             </td>
                             <td className="px-4 py-3 text-muted-foreground">{season.months.map((m) => monthLabels[m]).join(', ')}</td>
                             <td className="px-4 py-3 text-right text-foreground">{s.deliveries}</td>
-                            <td className="px-4 py-3 text-right text-foreground">{s.issueCount.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-right text-foreground">{s.estimate.toLocaleString()}</td>
                             <td className="px-4 py-3 text-right font-medium text-foreground">{s.issued.toLocaleString()}</td>
                             <td className="px-4 py-3 text-right font-medium text-foreground">{s.received.toLocaleString()}</td>
                             <td className="px-4 py-3 text-right text-foreground">{(s.issued - s.received).toLocaleString()}</td>
@@ -706,7 +729,7 @@ const ReportsPage: React.FC = () => {
                       <tr className="border-t-2 border-border bg-muted/40 font-semibold">
                         <td className="px-4 py-2.5 text-foreground" colSpan={2}>ANNUAL TOTAL</td>
                         <td className="px-4 py-2.5 text-right text-foreground">—</td>
-                        <td className="px-4 py-2.5 text-right text-foreground">{seasonalData.reduce((s, r) => s + r.issueCount, 0).toLocaleString()}</td>
+                        <td className="px-4 py-2.5 text-right text-foreground">{seasonalData.reduce((s, r) => s + r.estimate, 0).toLocaleString()}</td>
                         <td className="px-4 py-2.5 text-right text-foreground">{seasonalData.reduce((s, r) => s + r.issued, 0).toLocaleString()}</td>
                         <td className="px-4 py-2.5 text-right text-foreground">{seasonalData.reduce((s, r) => s + r.received, 0).toLocaleString()}</td>
                         <td className="px-4 py-2.5 text-right text-foreground">{seasonalData.reduce((s, r) => s + r.issued - r.received, 0).toLocaleString()}</td>
