@@ -9,8 +9,21 @@ import type { Delivery, Profile } from '@/types/types';
 import { format } from 'date-fns';
 import {
   Truck, Clock, CheckCircle, XCircle, Package,
-  TrendingUp, AlertTriangle, Eye, BarChart2
+  TrendingUp, AlertTriangle, Eye, BarChart2, PieChart
 } from 'lucide-react';
+
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+} from 'recharts';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -52,6 +65,29 @@ const AdminDashboard: React.FC = () => {
     { label: 'Total Received', value: '—', icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
   ];
 
+  const statusChartData = [
+    { name: 'Pending', value: stats.pendingReview },
+    { name: 'Approved', value: stats.approved },
+    { name: 'Rejected', value: stats.rejected },
+  ];
+
+  const monthlyChartData = Array.from({ length: 6 }).map((_, index) => {
+    const date = new Date(currentYear, currentMonth - 5 + index, 1);
+    const month = format(date, 'MMM');
+
+    const count = allDeliveries.filter((d) => {
+      const deliveryDate = new Date(d.delivery_date);
+      return (
+        deliveryDate.getMonth() === date.getMonth() &&
+        deliveryDate.getFullYear() === date.getFullYear()
+      );
+    }).length;
+
+    return { month, deliveries: count };
+  });
+
+  const COLORS = ['#f59e0b', '#22c55e', '#ef4444'];
+
   return (
     <AdminLayout>
       <div className="p-4 md:p-6 space-y-6">
@@ -79,6 +115,62 @@ const AdminDashboard: React.FC = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* Dashboard Graphs */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="shadow-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BarChart2 className="h-4 w-4 text-primary" />
+                Deliveries Last 6 Months
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="deliveries" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <PieChart className="h-4 w-4 text-primary" />
+                Deliveries by Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPieChart>
+                    <Pie
+                      data={statusChartData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                      label
+                    >
+                      {statusChartData.map((entry, index) => (
+                        <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Pending Review */}
