@@ -1,0 +1,70 @@
+name: Supabase Weekly Backup
+
+on:
+  schedule:
+    - cron: "0 7 * * 0"
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create backup folder
+        run: mkdir -p backup
+
+      - name: Backup profiles
+        run: |
+          curl -s "${{ secrets.VITE_SUPABASE_URL }}/rest/v1/profiles?select=*" \
+          -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -o backup/profiles.json
+
+      - name: Backup locations
+        run: |
+          curl -s "${{ secrets.VITE_SUPABASE_URL }}/rest/v1/locations?select=*" \
+          -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -o backup/locations.json
+
+      - name: Backup deliveries
+        run: |
+          curl -s "${{ secrets.VITE_SUPABASE_URL }}/rest/v1/deliveries?select=*" \
+          -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -o backup/deliveries.json
+
+      - name: Backup delivery items
+        run: |
+          curl -s "${{ secrets.VITE_SUPABASE_URL }}/rest/v1/delivery_location_items?select=*" \
+          -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -o backup/delivery_location_items.json
+
+      - name: Backup order history
+        run: |
+          curl -s "${{ secrets.VITE_SUPABASE_URL }}/rest/v1/order_history?select=*" \
+          -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -o backup/order_history.json
+
+      - name: Backup app settings
+        run: |
+          curl -s "${{ secrets.VITE_SUPABASE_URL }}/rest/v1/app_settings?select=*" \
+          -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -o backup/app_settings.json
+
+      - name: Backup audit logs
+        run: |
+          curl -s "${{ secrets.VITE_SUPABASE_URL }}/rest/v1/audit_logs?select=*" \
+          -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          -o backup/audit_logs.json
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 30
