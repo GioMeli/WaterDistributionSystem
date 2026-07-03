@@ -5,12 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Droplets, Eye, EyeOff, ShieldCheck, Truck, Copy } from 'lucide-react';
+import { Droplets, Eye, EyeOff, ShieldCheck, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 
-const DEMO_CREDENTIALS = [
-  { label: 'Vendor', email: 'vendor@wdms.local', password: 'Vendor@1234', role: 'vendor' as const },
-];
 
 const LoginPage: React.FC = () => {
   const { signIn, profile } = useAuth();
@@ -44,11 +41,6 @@ const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillCredentials = (cred: typeof DEMO_CREDENTIALS[0]) => {
-    setEmail(cred.email);
-    setPassword(cred.password);
   };
 
   return (
@@ -91,25 +83,6 @@ const LoginPage: React.FC = () => {
           </div>
 
           {/* Demo credentials on left panel */}
-          <div className="rounded-lg border border-sidebar-border bg-sidebar-accent p-4 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-              Demo Credentials
-            </p>
-            {DEMO_CREDENTIALS.map((cred) => (
-              <button
-                key={cred.role}
-                type="button"
-                onClick={() => fillCredentials(cred)}
-                className="w-full flex items-center justify-between rounded-md bg-sidebar/60 px-3 py-2 text-left hover:bg-sidebar transition-colors"
-              >
-                <div>
-                  <p className="text-sm font-medium text-sidebar-foreground">{cred.label}</p>
-                  <p className="text-xs text-sidebar-foreground/50">{cred.email}</p>
-                </div>
-                <Copy className="h-3.5 w-3.5 text-sidebar-foreground/40" />
-              </button>
-            ))}
-          </div>
         </div>
 
         <p className="text-xs text-sidebar-foreground/40">
@@ -190,26 +163,6 @@ const LoginPage: React.FC = () => {
               </form>
             </CardContent>
           </Card>
-
-          {/* Mobile demo credentials */}
-          <div className="lg:hidden rounded-lg border border-border bg-muted/50 p-4 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Demo Accounts — tap to fill
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {DEMO_CREDENTIALS.map((cred) => (
-                <button
-                  key={cred.role}
-                  type="button"
-                  onClick={() => fillCredentials(cred)}
-                  className="flex flex-col items-start rounded-md border border-border bg-card px-3 py-2 text-left hover:bg-muted transition-colors"
-                >
-                  <span className="text-sm font-medium text-foreground">{cred.label}</span>
-                  <span className="text-xs text-muted-foreground truncate w-full">{cred.email}</span>
-                </button>
-              ))}
-            </div>
-          </div>
 
           <p className="text-center text-xs text-muted-foreground">
             New vendor accounts are created by the Admin.

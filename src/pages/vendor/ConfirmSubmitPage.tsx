@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { NativeSigCanvas, type NativeSigCanvasHandle } from '@/components/common/SignaturePad';
 import { updateDelivery, uploadFile, addAuditLog } from '@/services/api';import { toast } from 'sonner';
 import { ArrowLeft, Send, ShieldCheck } from 'lucide-react';
+import { supabase } from '@/db/supabase';
+import { getSettings } from '@/services/api';
 
 const ConfirmSubmitPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -67,6 +69,33 @@ const ConfirmSubmitPage: React.FC = () => {
       entity_id: id,
       details: { vendor_name: vendorName },
     });
+
+    try {
+      const { data: settings } = await getSettings();
+      const settingsMap: Record<string, string> = {};
+      settings.forEach((s) => {
+        settingsMap[s.key] = s.value || '';
+      });
+
+      const adminEmail =
+        settingsMap.notification_email ||
+        settingsMap.admin_email ||
+        'georgios.meli@un.org';
+
+      await supabase.functions.invoke('send-email', {
+        body: {
+          to: adminEmail,
+          subject: 'New delivery submitted for review',
+          body: `
+            <p>A new water delivery has been submitted by <strong>${vendorName.trim()}</strong>.</p>
+            <p>Please login to the Admin Portal to review and approve the delivery.</p>
+            <p><strong>Delivery ID:</strong> ${id}</p>
+          `,
+        },
+      });
+    } catch (emailError) {
+      console.error('Admin notification email failed:', emailError);
+    }
 
     toast.success('Delivery submitted to Admin successfully');
     navigate('/vendor');
