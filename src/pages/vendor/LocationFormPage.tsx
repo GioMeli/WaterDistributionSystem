@@ -48,6 +48,17 @@ const LocationFormPage: React.FC = () => {
       setOfficerName(found.officer_name || '');
       setNotes(found.notes || '');
       setSignatureUrl(found.officer_signature_url);
+
+      const draftRaw = localStorage.getItem(`wdms-location-draft-${found.id}`);
+      if (draftRaw) {
+        const draft = JSON.parse(draftRaw);
+        setNoIssue(draft.noIssue ?? found.no_issue_needed);
+        setIssuedQty(draft.issuedQty ?? (found.issued_quantity > 0 ? String(found.issued_quantity) : ''));
+        setReceivedQty(draft.receivedQty ?? (found.received_quantity > 0 ? String(found.received_quantity) : ''));
+        setOfficerName(draft.officerName ?? found.officer_name ?? '');
+        setNotes(draft.notes ?? found.notes ?? '');
+        setSignatureUrl(draft.signatureUrl ?? found.officer_signature_url);
+      }
     }
     setLoading(false);
   }, [id, itemId]);
@@ -71,6 +82,23 @@ const LocationFormPage: React.FC = () => {
       setOfficerName('');
     }
   };
+
+  const draftKey = itemId ? `wdms-location-draft-${itemId}` : '';
+
+  useEffect(() => {
+    if (!draftKey || loading || isReadOnly) return;
+
+    const draft = {
+      noIssue,
+      issuedQty,
+      receivedQty,
+      officerName,
+      notes,
+      signatureUrl,
+    };
+
+    localStorage.setItem(draftKey, JSON.stringify(draft));
+  }, [draftKey, loading, isReadOnly, noIssue, issuedQty, receivedQty, officerName, notes, signatureUrl]);
 
   const handleSaveSignature = () => {
     if (sigRef.current?.isEmpty()) {
@@ -140,6 +168,8 @@ const LocationFormPage: React.FC = () => {
       entity_id: item.id,
       details: { office_name: item.office_name, status: updates.status },
     });
+
+    localStorage.removeItem(`wdms-location-draft-${item.id}`);
 
     toast.success('Location saved successfully');
     navigate(`/vendor/delivery/${delivery.id}`);
