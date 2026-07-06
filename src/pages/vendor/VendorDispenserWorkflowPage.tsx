@@ -260,22 +260,13 @@ const VendorDispenserWorkflowPage: React.FC<Props> = ({ processType }) => {
           status: 'returned',
           next_due_date: nextDue,
           notes: stepNotes.trim() || stepItem.notes,
+          ...(attachUrl ? { result_attachment_url: attachUrl } : {}),
         };
       } else {
-        // vendor_sign → completed; upload descaling attachment if present
-        let attachUrl: string | null = null;
-        if (attachFile) {
-          setAttachUploading(true);
-          const ext = attachFile.name.split('.').pop() || 'pdf';
-          const attPath = `attachments/${stepItem.cycle_id}/${stepItem.id}_result.${ext}`;
-          attachUrl = await uploadFile('dispenser-assets', attPath, attachFile, attachFile.type);
-          setAttachUploading(false);
-          if (!attachUrl) throw new Error('Attachment upload failed');
-        }
+        // vendor_sign → completed only. Attachment is uploaded during return for descaling.
         updates = {
           vendor_signature_url: sigUrl,
           status: 'completed',
-          ...(attachUrl ? { result_attachment_url: attachUrl } : {}),
         };
       }
 
