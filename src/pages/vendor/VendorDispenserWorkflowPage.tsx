@@ -156,7 +156,12 @@ const VendorDispenserWorkflowPage: React.FC<Props> = ({ processType }) => {
       const toInsert = missing.map((d) => {
         const loc = d.location as { office_name?: string } | null;
         // If dispenser has a future next_due_date for THIS process type, treat as locked
-        const locked = d.next_due_date && isAfter(new Date(d.next_due_date), today);
+        const processNextDue =
+          processType === 'descaling'
+            ? d.descaling_next_due_date
+            : d.sanitisation_next_due_date;
+
+        const locked = processNextDue && isAfter(new Date(processNextDue), today);
         return {
           cycle_id: activeCycle!.id,
           dispenser_id: d.id,
@@ -164,7 +169,7 @@ const VendorDispenserWorkflowPage: React.FC<Props> = ({ processType }) => {
           model: d.model,
           location_name: loc?.office_name || null,
           status: locked ? 'approved' : 'pending',
-          next_due_date: locked ? d.next_due_date : null,
+          next_due_date: locked ? processNextDue : null,
         };
       });
       const { data: inserted } = await supabase
@@ -213,7 +218,7 @@ const VendorDispenserWorkflowPage: React.FC<Props> = ({ processType }) => {
     if (!sigDataUrl) { toast.error('Signature is required'); return; }
     if (stepMode !== 'vendor_sign' && !stepDate) { toast.error('Date is required'); return; }
     if (stepMode !== 'vendor_sign' && !stepOfficer.trim()) { toast.error('Officer name is required'); return; }
-    if (stepMode === 'vendor_sign' && processType === 'descaling' && !attachFile) {
+    if (stepMode === 'return' && processType === 'descaling' && !attachFile) {
       toast.error('Descaling results attachment is required'); return;
     }
 
@@ -237,6 +242,17 @@ const VendorDispenserWorkflowPage: React.FC<Props> = ({ processType }) => {
         };
       } else if (stepMode === 'return') {
         const nextDue = calcNextDue(stepDate, processType);
+        let attachUrl: string | null = null;
+
+        if (processType === 'descaling' && attachFile) {
+          setAttachUploading(true);
+          const ext = attachFile.name.split('.').pop() || 'pdf';
+          const attPath = `attachments/${stepItem.cycle_id}/${stepItem.id}_return_result.${ext}`;
+          attachUrl = await uploadFile('dispenser-assets', attPath, attachFile, attachFile.type);
+          setAttachUploading(false);
+
+          if (!attachUrl) throw new Error('Attachment upload failed');
+        }
         updates = {
           returned_date: stepDate,
           return_officer_name: stepOfficer.trim(),
@@ -268,6 +284,26 @@ const VendorDispenserWorkflowPage: React.FC<Props> = ({ processType }) => {
         .update(updates)
         .eq('id', stepItem.id);
       if (error) throw error;
+
+      if (stepMode === 'return') {
+        const dispenserUpdate =
+          processType === 'descaling'
+            ? {
+                descaling_next_due_date: calcNextDue(stepDate, processType),
+                descaling_last_completed_at: new Date().toISOString(),
+              }
+            : {
+                sanitisation_next_due_date: calcNextDue(stepDate, processType),
+                sanitisation_last_completed_at: new Date().toISOString(),
+              };
+
+        const { error: dispenserError } = await supabase
+          .from('dispensers')
+          .update(dispenserUpdate)
+          .eq('id', stepItem.dispenser_id);
+
+        if (dispenserError) throw dispenserError;
+      }
 
       toast.success('Saved successfully');
       setStepItem(null);
@@ -623,7 +659,7 @@ const VendorDispenserWorkflowPage: React.FC<Props> = ({ processType }) => {
               </div>
 
               {/* Descaling result attachment — only on vendor_sign for descaling */}
-              {stepMode === 'vendor_sign' && processType === 'descaling' && (
+              {stepMode === 'return' && processType === 'descaling' && (
                 <div className="space-y-1.5">
                   <Label>Descaling Result Attachment <span className="text-destructive">*</span></Label>
                   <p className="text-xs text-muted-foreground">Upload the results document (PDF or image) from the descaling process.</p>
