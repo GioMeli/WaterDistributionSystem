@@ -7,6 +7,8 @@ import {
   LayoutDashboard,
   Truck,
   History,
+  Wrench,
+  DropletsIcon,
   LogOut,
   Menu,
   Droplets,
@@ -17,6 +19,8 @@ import { cn } from '@/lib/utils';
 const vendorNavItems = [
   { label: 'Dashboard', path: '/vendor', icon: LayoutDashboard, exact: true },
   { label: 'New Delivery', path: '/vendor/new-delivery', icon: Truck },
+  { label: 'Sanitisation', path: '/vendor/sanitisation', icon: DropletsIcon },
+  { label: 'Descaling', path: '/vendor/descaling', icon: Wrench },
   { label: 'History', path: '/vendor/history', icon: History },
 ];
 

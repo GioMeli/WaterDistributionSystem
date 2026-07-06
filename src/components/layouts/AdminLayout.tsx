@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   LayoutDashboard, MapPin, Users, BarChart2, Settings, LogOut,
-  Menu, Droplets, ChevronRight, ClipboardList, History, ShieldCheck,
+  Menu, Droplets, ChevronRight, ClipboardList, History, ShieldCheck, Wrench, ClipboardCheck, FileSpreadsheet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +17,9 @@ const adminNavItems = [
   { label: 'Reports',        path: '/admin/reports',         icon: BarChart2 },
   { label: 'Orders History', path: '/admin/order-history',   icon: History },
   { label: 'Audit Logs',     path: '/admin/audit-logs',      icon: ShieldCheck },
+  { label: 'Dispensers',         path: '/admin/dispensers',         icon: Wrench },
+  { label: 'Dispenser Cycles',   path: '/admin/dispenser-cycles',   icon: ClipboardCheck },
+  { label: 'Dispenser Reports',  path: '/admin/dispenser-reports',  icon: FileSpreadsheet },
   { label: 'Settings',       path: '/admin/settings',        icon: Settings },
 ];
 

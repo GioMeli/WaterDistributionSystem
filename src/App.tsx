@@ -24,6 +24,12 @@ import ReportsPage from '@/pages/admin/ReportsPage';
 import OrderHistoryPage from '@/pages/admin/OrderHistoryPage';
 import SettingsPage from '@/pages/admin/SettingsPage';
 import AuditLogsPage from '@/pages/admin/AuditLogsPage';
+import DispensersPage from '@/pages/admin/DispensersPage';
+import DispenserCyclesPage from '@/pages/admin/DispenserCyclesPage';
+import DispenserReportsPage from '@/pages/admin/DispenserReportsPage';
+import SanitisationPage from '@/pages/vendor/SanitisationPage';
+import DescalingPage from '@/pages/vendor/DescalingPage';
+import VendorDispenserWorkflowPage from '@/pages/vendor/VendorDispenserWorkflowPage';
 
 const App: React.FC = () => {
   return (
@@ -40,6 +46,10 @@ const App: React.FC = () => {
           <Route path="/vendor/delivery/:id/location/:itemId" element={<ProtectedRoute requiredRole="vendor"><LocationFormPage /></ProtectedRoute>} />
           <Route path="/vendor/delivery/:id/confirm" element={<ProtectedRoute requiredRole="vendor"><ConfirmSubmitPage /></ProtectedRoute>} />
           <Route path="/vendor/history" element={<ProtectedRoute requiredRole="vendor"><VendorDashboard /></ProtectedRoute>} />
+          <Route path="/vendor/sanitisation" element={<ProtectedRoute requiredRole="vendor"><SanitisationPage /></ProtectedRoute>} />
+          <Route path="/vendor/descaling" element={<ProtectedRoute requiredRole="vendor"><DescalingPage /></ProtectedRoute>} />
+          <Route path="/vendor/sanitisation/workflow/:cycleId" element={<ProtectedRoute requiredRole="vendor"><VendorDispenserWorkflowPage processType="sanitisation" /></ProtectedRoute>} />
+          <Route path="/vendor/descaling/workflow/:cycleId" element={<ProtectedRoute requiredRole="vendor"><VendorDispenserWorkflowPage processType="descaling" /></ProtectedRoute>} />
 
           {/* Admin routes */}
           <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
@@ -50,6 +60,9 @@ const App: React.FC = () => {
           <Route path="/admin/reports" element={<ProtectedRoute requiredRole="admin"><ReportsPage /></ProtectedRoute>} />
           <Route path="/admin/order-history" element={<ProtectedRoute requiredRole="admin"><OrderHistoryPage /></ProtectedRoute>} />
           <Route path="/admin/audit-logs" element={<ProtectedRoute requiredRole="admin"><AuditLogsPage /></ProtectedRoute>} />
+          <Route path="/admin/dispensers" element={<ProtectedRoute requiredRole="admin"><DispensersPage /></ProtectedRoute>} />
+          <Route path="/admin/dispenser-cycles" element={<ProtectedRoute requiredRole="admin"><DispenserCyclesPage /></ProtectedRoute>} />
+          <Route path="/admin/dispenser-reports" element={<ProtectedRoute requiredRole="admin"><DispenserReportsPage /></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute requiredRole="admin"><SettingsPage /></ProtectedRoute>} />
 
           {/* Default redirects */}
