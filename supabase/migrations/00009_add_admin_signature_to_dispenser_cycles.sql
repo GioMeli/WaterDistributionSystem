@@ -1,0 +1,1 @@
+ALTER TABLE dispenser_cycles ADD COLUMN IF NOT EXISTS admin_signature_url TEXT;

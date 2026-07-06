@@ -130,3 +130,87 @@ export interface ReportFilters {
   min_issued?: number;
   max_issued?: number;
 }
+
+export type DispenserProcessType = 'sanitisation' | 'descaling';
+
+export type DispenserCycleStatus =
+  | 'open'
+  | 'submitted_to_admin'
+  | 'approved'
+  | 'rejected';
+
+export type DispenserItemStatus =
+  | 'pending'
+  | 'collected'
+  | 'in_process'
+  | 'returned'
+  | 'completed'
+  | 'submitted_to_admin'
+  | 'approved'
+  | 'rejected';
+
+export interface Dispenser {
+  id: string;
+  location_id: string | null;
+  serial_number: string | null;
+  model: string | null;
+  notes: string | null;
+  is_active: boolean;
+  next_due_date: string | null;
+  last_completed_at: string | null;
+  sanitisation_next_due_date?: string | null;
+  sanitisation_last_completed_at?: string | null;
+  descaling_next_due_date?: string | null;
+  descaling_last_completed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  location?: LocationRecord | null;
+}
+
+export interface DispenserCycle {
+  id: string;
+  process_type: DispenserProcessType;
+  vendor_id: string;
+  vendor_full_name: string;
+  vendor_signature_url: string | null;
+  status: DispenserCycleStatus;
+  admin_id: string | null;
+  admin_full_name: string | null;
+  admin_comments: string | null;
+  admin_approved_at: string | null;
+  admin_signature_url: string | null;
+  cycle_pdf_url: string | null;
+  submitted_at: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: DispenserCycleItem[];
+}
+
+export interface DispenserCycleItem {
+  id: string;
+  cycle_id: string;
+  dispenser_id: string;
+  serial_number: string | null;
+  model: string | null;
+  location_name: string | null;
+  collected_date: string | null;
+  collect_officer_name: string | null;
+  collect_officer_signature_url: string | null;
+  returned_date: string | null;
+  return_officer_name: string | null;
+  return_officer_signature_url: string | null;
+  vendor_signature_url: string | null;
+  result_attachment_url: string | null;
+  item_pdf_url: string | null;
+  status: DispenserItemStatus;
+  next_due_date: string | null;
+  notes: string | null;
+  admin_id: string | null;
+  admin_full_name: string | null;
+  admin_comments: string | null;
+  admin_approved_at: string | null;
+  admin_signature_url: string | null;
+  created_at: string;
+  updated_at: string;
+  dispenser?: Dispenser | null;
+}
