@@ -121,10 +121,12 @@ const DeliveryMap: React.FC<Props> = ({ items }) => {
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-muted">
+    <div className="relative z-0 overflow-hidden rounded-lg border border-border bg-muted">
       <div
           ref={mapRef}
           className="
+              relative
+              z-0
               aspect-square
               lg:aspect-auto
               lg:h-[380px]
