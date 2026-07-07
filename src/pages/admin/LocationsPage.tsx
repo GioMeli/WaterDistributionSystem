@@ -16,6 +16,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import DeliveryMap from '@/pages/vendor/DeliveryMap';
 
 const emptyLocation = (): Partial<LocationRecord> => ({
   route_number: '',
@@ -158,6 +159,17 @@ const LocationsPage: React.FC = () => {
 
         <Card className="shadow-card">
           <CardContent className="p-0">
+            <DeliveryMap
+              items={locations.map((loc) => ({
+                id: loc.id,
+                latitude: loc.latitude,
+                longitude: loc.longitude,
+                route_number: loc.route_number,
+                office_name: loc.office_name,
+                location_name: loc.office_name,
+                status: loc.is_active ? 'pending' : 'no_issue',
+              }))}
+            />
             {loading ? (
               <div className="space-y-2 p-4">
                 {[1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded bg-muted" />)}

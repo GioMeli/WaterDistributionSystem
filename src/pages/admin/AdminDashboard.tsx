@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DeliveryStatusBadge } from '@/components/common/StatusBadge';
 import { getAllDeliveries, getPendingDeliveries } from '@/services/api';
-import type { Delivery, Profile } from '@/types/types';
+import type { Delivery, Profile, DispenserCycleItem } from '@/types/types';
 import { format } from 'date-fns';
 import {
   Truck, Clock, CheckCircle, XCircle, Package,
-  TrendingUp, AlertTriangle, Eye, BarChart2, PieChart
+  TrendingUp, AlertTriangle, Eye, BarChart2, PieChart, FlaskConical, RotateCcw
 } from 'lucide-react';
+import { supabase } from '@/db/supabase';
 
 import {
   BarChart,
@@ -29,16 +30,27 @@ const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [allDeliveries, setAllDeliveries] = useState<(Delivery & { vendor: Profile })[]>([]);
   const [pending, setPending] = useState<(Delivery & { vendor: Profile })[]>([]);
+  const [pendingDispenserItems, setPendingDispenserItems] = useState<
+    (DispenserCycleItem & { cycle?: { process_type: string; vendor_full_name: string } })[]
+  >([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getAllDeliveries(200), getPendingDeliveries()]).then(
-      ([{ data: all }, { data: pend }]) => {
-        setAllDeliveries(all);
-        setPending(pend);
-        setLoading(false);
-      }
-    );
+    Promise.all([
+      getAllDeliveries(200),
+      getPendingDeliveries(),
+      supabase
+        .from('dispenser_cycle_items')
+        .select('*, cycle:dispenser_cycles(process_type,vendor_full_name)')
+        .eq('status', 'submitted_to_admin')
+        .order('created_at', { ascending: true })
+        .limit(50),
+    ]).then(([{ data: all }, { data: pend }, { data: items }]) => {
+      setAllDeliveries(all);
+      setPending(pend);
+      setPendingDispenserItems((items as any[]) ?? []);
+      setLoading(false);
+    });
   }, []);
 
   const now = new Date();
@@ -210,6 +222,55 @@ const AdminDashboard: React.FC = () => {
                       </p>
                     </div>
                     <Button size="sm" className="shrink-0 gap-1.5" onClick={() => navigate(`/admin/delivery/${d.id}`)}>
+                      <Eye className="h-3.5 w-3.5" />
+                      Review
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <RotateCcw className="h-4 w-4 text-orange-500" />
+              Dispenser Items Pending Review ({pendingDispenserItems.length})
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin/dispenser-cycles')}>
+              View All
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="space-y-2">
+                {[1, 2].map((i) => <div key={i} className="h-16 animate-pulse rounded-md bg-muted" />)}
+              </div>
+            ) : pendingDispenserItems.length === 0 ? (
+              <div className="flex items-center gap-3 rounded-lg bg-muted/40 p-4">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <p className="text-sm text-muted-foreground">No dispenser items pending review.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pendingDispenserItems.slice(0, 5).map((item) => (
+                  <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-orange-200 bg-orange-50 p-3">
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <FlaskConical className="h-4 w-4 text-orange-600 shrink-0" />
+                        <span className="font-medium text-foreground">{item.serial_number || 'S/N —'}</span>
+                        <span className="text-xs capitalize text-muted-foreground">{item.cycle?.process_type || '-'}</span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                          Pending Review
+                        </span>
+                      </div>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {item.location_name || '—'}
+                        {item.cycle?.vendor_full_name && <span className="ml-2">· {item.cycle.vendor_full_name}</span>}
+                      </p>
+                    </div>
+                    <Button size="sm" className="shrink-0 gap-1.5" onClick={() => navigate('/admin/dispenser-cycles')}>
                       <Eye className="h-3.5 w-3.5" />
                       Review
                     </Button>

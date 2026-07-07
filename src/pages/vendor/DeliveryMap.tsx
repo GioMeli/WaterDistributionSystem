@@ -1,75 +1,150 @@
-import React, { useMemo } from 'react';
-import type { DeliveryLocationItem } from '@/types/types';
+import React, { useEffect, useRef } from 'react';
+import L from 'leaflet';
 
-const GMAPS_KEY = 'AIzaSyB_LJOYJL-84SMuxNB7LtRGhxEQLjswvy0';
-
-// Marker color mapping for Google Static Maps API
-const STATUS_MARKER: Record<string, string> = {
-  pending: 'red',
-  completed: 'green',
-  no_issue_needed: 'gray',
+type Props = {
+  items: any[];
 };
 
-interface DeliveryMapProps {
-  items: DeliveryLocationItem[];
-}
+const getColor = (status: string) => {
+  if (status === 'completed') return '#22c55e';
+  if (status === 'no_issue') return '#9ca3af';
+  return '#ef4444';
+};
 
-const DeliveryMap: React.FC<DeliveryMapProps> = ({ items }) => {
-  const geoItems = useMemo(
-    () => items.filter((i) => i.latitude != null && i.longitude != null),
-    [items]
+const createRouteIcon = (routeNumber: string | number, status: string) =>
+  L.divIcon({
+    className: '',
+    html: `
+      <div style="
+        background:${getColor(status)};
+        color:white;
+        width:30px;
+        height:30px;
+        border-radius:9999px;
+        border:2px solid white;
+        box-shadow:0 2px 8px rgba(0,0,0,.35);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:12px;
+        font-weight:700;
+      ">
+        ${routeNumber ?? ''}
+      </div>
+    `,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+    popupAnchor: [0, -16],
+  });
+
+const DeliveryMap: React.FC<Props> = ({ items }) => {
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  const leafletMapRef = useRef<L.Map | null>(null);
+
+  const validItems = items.filter(
+    (i) =>
+      i.latitude !== null &&
+      i.longitude !== null &&
+      !Number.isNaN(Number(i.latitude)) &&
+      !Number.isNaN(Number(i.longitude))
   );
 
-  const staticMapUrl = useMemo(() => {
-    if (geoItems.length === 0) return null;
+  useEffect(() => {
+    if (!mapRef.current || validItems.length === 0) return;
 
-    const centerLat = geoItems.reduce((s, i) => s + (i.latitude ?? 0), 0) / geoItems.length;
-    const centerLng = geoItems.reduce((s, i) => s + (i.longitude ?? 0), 0) / geoItems.length;
+    if (leafletMapRef.current) {
+      leafletMapRef.current.remove();
+      leafletMapRef.current = null;
+    }
 
-    // Build marker params grouped by color
-    const markerParams = geoItems
-      .map((item) => {
-        const color = STATUS_MARKER[item.status] ?? 'blue';
-        return `markers=color:${color}%7C${item.latitude},${item.longitude}`;
+    const centerLat =
+      validItems.reduce((sum, i) => sum + Number(i.latitude), 0) / validItems.length;
+
+    const centerLng =
+      validItems.reduce((sum, i) => sum + Number(i.longitude), 0) / validItems.length;
+
+    const map = L.map(mapRef.current, {
+      center: [centerLat, centerLng],
+      zoom: 14,
+      scrollWheelZoom: true,
+    });
+
+    leafletMapRef.current = map;
+
+    L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(map);
+
+    const bounds = L.latLngBounds([]);
+
+    validItems.forEach((item) => {
+      const lat = Number(item.latitude);
+      const lng = Number(item.longitude);
+
+      bounds.extend([lat, lng]);
+
+      L.marker([lat, lng], {
+        icon: createRouteIcon(item.route_number, item.status),
       })
-      .join('&');
+        .addTo(map)
+        .bindPopup(`
+          <strong>Route ${item.route_number ?? '-'}</strong><br/>
+          ${item.office_name || item.location_name || 'Location'}<br/>
+          Status: ${item.status}
+        `);
+    });
 
-    return (
-      `https://maps.googleapis.com/maps/api/staticmap` +
-      `?center=${centerLat},${centerLng}` +
-      `&zoom=14` +
-      `&size=640x320` +
-      `&maptype=roadmap` +
-      `&${markerParams}` +
-      `&key=${GMAPS_KEY}`
-    );
-  }, [geoItems]);
+    if (validItems.length > 1) {
+      map.fitBounds(bounds, {
+        padding: [40, 40],
+        maxZoom: 17,
+      });
+    }
 
-  if (geoItems.length === 0) {
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 250);
+
+    return () => {
+      map.remove();
+      leafletMapRef.current = null;
+    };
+  }, [items]);
+
+  if (validItems.length === 0) {
     return (
-      <div className="flex h-48 items-center justify-center rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
-        No map coordinates available for these locations.
+      <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+        No map available. Add latitude and longitude to the delivery locations.
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
-      <img
-        src={staticMapUrl!}
-        alt="Delivery locations map"
-        className="w-full object-cover"
-        style={{ height: '320px' }}
+    <div className="overflow-hidden rounded-lg border border-border bg-muted">
+      <div
+          ref={mapRef}
+          className="
+              aspect-square
+              lg:aspect-auto
+              lg:h-[380px]
+              w-full
+              rounded-lg
+          "
       />
-      <div className="flex items-center gap-4 border-t border-border bg-card px-4 py-2 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Pending
+
+      <div className="flex gap-4 border-t bg-white px-4 py-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <span className="h-3 w-3 rounded-full bg-red-500" />
+          Pending
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-green-500" /> Completed
+        <span className="flex items-center gap-1">
+          <span className="h-3 w-3 rounded-full bg-green-500" />
+          Completed
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-gray-400" /> No Issue
+        <span className="flex items-center gap-1">
+          <span className="h-3 w-3 rounded-full bg-gray-400" />
+          No Issue
         </span>
       </div>
     </div>
