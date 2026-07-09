@@ -157,7 +157,7 @@ const DispenserProcessStartPage: React.FC<Props> = ({ processType }) => {
       route_number: loc?.route_number,
       office_name: loc?.office_name,
       location_name: loc?.office_name,
-      status: locked ? 'no_issue' : 'pending',
+      status: 'pending',
     };
   });
 

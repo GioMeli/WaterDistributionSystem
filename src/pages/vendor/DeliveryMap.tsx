@@ -7,7 +7,7 @@ type Props = {
 
 const getColor = (status: string) => {
   if (status === 'completed') return '#22c55e';
-  if (status === 'no_issue') return '#9ca3af';
+  if (status === 'no_issue' || status === 'no_issue_needed') return '#9ca3af';
   return '#ef4444';
 };
 
