@@ -1,8 +1,8 @@
 import React from 'react';
-import VendorDispenserWorkflowPage from './VendorDispenserWorkflowPage';
+import DispenserProcessStartPage from './DispenserProcessStartPage';
 
 const DescalingPage: React.FC = () => (
-  <VendorDispenserWorkflowPage processType="descaling" />
+  <DispenserProcessStartPage processType="descaling" />
 );
 
 export default DescalingPage;

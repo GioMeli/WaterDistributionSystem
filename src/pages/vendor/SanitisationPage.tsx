@@ -1,8 +1,8 @@
 import React from 'react';
-import VendorDispenserWorkflowPage from './VendorDispenserWorkflowPage';
+import DispenserProcessStartPage from './DispenserProcessStartPage';
 
 const SanitisationPage: React.FC = () => (
-  <VendorDispenserWorkflowPage processType="sanitisation" />
+  <DispenserProcessStartPage processType="sanitisation" />
 );
 
 export default SanitisationPage;

@@ -30,6 +30,7 @@ import DispenserReportsPage from '@/pages/admin/DispenserReportsPage';
 import SanitisationPage from '@/pages/vendor/SanitisationPage';
 import DescalingPage from '@/pages/vendor/DescalingPage';
 import VendorDispenserWorkflowPage from '@/pages/vendor/VendorDispenserWorkflowPage';
+import DispenserHistoryPage from '@/pages/shared/DispenserHistoryPage';
 
 const App: React.FC = () => {
   return (
@@ -50,7 +51,8 @@ const App: React.FC = () => {
           <Route path="/vendor/descaling" element={<ProtectedRoute requiredRole="vendor"><DescalingPage /></ProtectedRoute>} />
           <Route path="/vendor/sanitisation/workflow/:cycleId" element={<ProtectedRoute requiredRole="vendor"><VendorDispenserWorkflowPage processType="sanitisation" /></ProtectedRoute>} />
           <Route path="/vendor/descaling/workflow/:cycleId" element={<ProtectedRoute requiredRole="vendor"><VendorDispenserWorkflowPage processType="descaling" /></ProtectedRoute>} />
-
+          <Route path="/vendor/dispenser-history" element={<ProtectedRoute requiredRole="vendor"><DispenserHistoryPage role="vendor" /></ProtectedRoute>} />
+          
           {/* Admin routes */}
           <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/deliveries" element={<ProtectedRoute requiredRole="admin"><DeliveriesListPage /></ProtectedRoute>} />
