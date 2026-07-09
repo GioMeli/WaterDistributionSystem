@@ -36,6 +36,7 @@ import {
 import { uploadFile } from '@/services/api';
 import { generateIndividualDispenserPdf } from '@/utils/generateDispenserPdf';
 import type { DispenserProcessType, DispenserCycle, DispenserCycleItem, Dispenser } from '@/types/types';
+import { useNavigate, useParams } from 'react-router-dom';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 const fmtDate = (d: string | null | undefined) =>
@@ -65,6 +66,8 @@ type StepMode = 'collect' | 'return' | 'vendor_sign';
 
 const VendorDispenserWorkflowPage: React.FC<Props> = ({ processType }) => {
   const { profile } = useAuth();
+  const navigate = useNavigate();
+  const { cycleId } = useParams<{ cycleId: string }>();
 
   // ── State ──
   const [cycle, setCycle] = useState<DispenserCycle | null>(null);
@@ -99,90 +102,42 @@ const VendorDispenserWorkflowPage: React.FC<Props> = ({ processType }) => {
 
   // ── Load / init ────────────────────────────────────────────────────────────
   const loadAll = useCallback(async () => {
-    if (!profile) return;
+    if (!profile || !cycleId) return;
+
     setLoading(true);
 
-    // 1. Load all active dispensers
-    const { data: dData } = await supabase
-      .from('dispensers')
-      .select('*, location:locations(id,office_name,building_number)')
-      .eq('is_active', true)
-      .order('created_at');
-    const allDispensers = (dData as Dispenser[]) ?? [];
-    setDispensers(allDispensers);
-
-    // 2. Find or create an open cycle for this vendor + process type
-    const { data: existingCycles } = await supabase
+    const { data: cycleData, error: cycleError } = await supabase
       .from('dispenser_cycles')
       .select('*')
+      .eq('id', cycleId)
       .eq('vendor_id', profile.id)
       .eq('process_type', processType)
-      .eq('status', 'open')
-      .order('created_at', { ascending: false })
-      .limit(1);
+      .maybeSingle();
 
-    let activeCycle: DispenserCycle | null = (existingCycles as DispenserCycle[])?.[0] ?? null;
-
-    if (!activeCycle) {
-      const { data: newCycle, error } = await supabase
-        .from('dispenser_cycles')
-        .insert({
-          process_type: processType,
-          vendor_id: profile.id,
-          vendor_full_name: profile.full_name || profile.email,
-          status: 'open',
-        })
-        .select()
-        .maybeSingle();
-      if (error || !newCycle) { toast.error('Failed to initialise cycle'); setLoading(false); return; }
-      activeCycle = newCycle as DispenserCycle;
+    if (cycleError || !cycleData) {
+      toast.error('Process not found');
+      navigate(`/vendor/${processType}`);
+      setLoading(false);
+      return;
     }
-    setCycle(activeCycle);
 
-    // 3. Load existing cycle items
-    const { data: itemData } = await supabase
+    setCycle(cycleData as DispenserCycle);
+
+    const { data: itemData, error: itemError } = await supabase
       .from('dispenser_cycle_items')
       .select('*')
-      .eq('cycle_id', activeCycle.id)
+      .eq('cycle_id', cycleData.id)
       .order('created_at');
-    const existingItems = (itemData as DispenserCycleItem[]) ?? [];
 
-    // 4. Ensure every active dispenser has an item in this cycle
-    const today = new Date();
-    const existingIds = new Set(existingItems.map((i) => i.dispenser_id));
-    const missing = allDispensers.filter((d) => !existingIds.has(d.id));
-
-    if (missing.length > 0) {
-      const toInsert = missing.map((d) => {
-        const loc = d.location as { office_name?: string } | null;
-        // If dispenser has a future next_due_date for THIS process type, treat as locked
-        const processNextDue =
-          processType === 'descaling'
-            ? d.descaling_next_due_date
-            : d.sanitisation_next_due_date;
-
-        const locked = processNextDue && isAfter(new Date(processNextDue), today);
-        return {
-          cycle_id: activeCycle!.id,
-          dispenser_id: d.id,
-          serial_number: d.serial_number,
-          model: d.model,
-          location_name: loc?.office_name || null,
-          status: locked ? 'approved' : 'pending',
-          next_due_date: locked ? processNextDue : null,
-        };
-      });
-      const { data: inserted } = await supabase
-        .from('dispenser_cycle_items')
-        .insert(toInsert)
-        .select();
-      setCycleItems([...existingItems, ...(inserted as DispenserCycleItem[] ?? [])]);
-    } else {
-      setCycleItems(existingItems);
+    if (itemError) {
+      toast.error('Failed to load process items');
+      setLoading(false);
+      return;
     }
 
+    setCycleItems((itemData as DispenserCycleItem[]) ?? []);
     setLoading(false);
-  }, [profile, processType]);
+  }, [profile, processType, cycleId, navigate]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
