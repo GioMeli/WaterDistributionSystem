@@ -37,6 +37,7 @@ import { uploadFile } from '@/services/api';
 import { generateIndividualDispenserPdf } from '@/utils/generateDispenserPdf';
 import type { DispenserProcessType, DispenserCycle, DispenserCycleItem, Dispenser } from '@/types/types';
 import { useNavigate, useParams } from 'react-router-dom';
+import DeliveryMap from '@/pages/vendor/DeliveryMap';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 const fmtDate = (d: string | null | undefined) =>
@@ -125,7 +126,19 @@ const VendorDispenserWorkflowPage: React.FC<Props> = ({ processType }) => {
 
     const { data: itemData, error: itemError } = await supabase
       .from('dispenser_cycle_items')
-      .select('*')
+      .select(`
+        *,
+        dispenser:dispensers(
+          id,
+          location:locations(
+            id,
+            route_number,
+            office_name,
+            latitude,
+            longitude
+          )
+        )
+      `)
       .eq('cycle_id', cycleData.id)
       .order('created_at');
 
@@ -148,6 +161,21 @@ const VendorDispenserWorkflowPage: React.FC<Props> = ({ processType }) => {
   const completedItems  = cycleItems.filter((i) => ['completed', 'submitted_to_admin'].includes(i.status));
   const lockedItems     = cycleItems.filter((i) =>
     i.status === 'approved' && !!i.next_due_date && isAfter(new Date(i.next_due_date), today));
+  const workflowMapItems = cycleItems.map((item) => {
+  const location = (item as any).dispenser?.location;
+
+  return {
+    id: item.id,
+    latitude: location?.latitude,
+    longitude: location?.longitude,
+    route_number: location?.route_number,
+    office_name: location?.office_name || item.location_name,
+    location_name: location?.office_name || item.location_name,
+    status: ['completed', 'submitted_to_admin', 'approved'].includes(item.status)
+      ? 'completed'
+      : 'pending',
+  };
+});
 
   // ── Open step dialog ───────────────────────────────────────────────────────
   const openStep = (item: DispenserCycleItem, mode: StepMode) => {
@@ -459,6 +487,8 @@ const VendorDispenserWorkflowPage: React.FC<Props> = ({ processType }) => {
             </Card>
           ))}
         </div>
+
+        <DeliveryMap items={workflowMapItems} />
 
         {/* Tabbed dispenser list */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
